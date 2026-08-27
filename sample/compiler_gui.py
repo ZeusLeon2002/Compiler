@@ -1,14 +1,9 @@
-try: 
-    import customtkinter as ctk
-    import tkinter as tk
-    import json
-    from pathlib import Path
-    
-except ImportError:
-    import pip
-    pip.main(['install', 'customtkinter', 'pathlib'])
-    import customtkinter as ctk
-    import tkinter as tk
+from tkinter import font
+
+import customtkinter as ctk
+import tkinter as tk
+import json
+from pathlib import Path
 
 file_saved = False
 file_path = None
@@ -29,6 +24,7 @@ class Compiler(ctk.CTk):
         super().__init__()
         self.title("Compiler - Text Editor")
         self.geometry("800x600")
+        self.iconbitmap(True, "docs/assets/Logo.ico")
         
         # File menu   
         menubar = tk.Menu(self)
@@ -57,24 +53,39 @@ class Compiler(ctk.CTk):
         self.bind("<Control-Shift-A>", lambda event: self.analyze())
         menubar.add_cascade(label="Compiler", menu=compiler_menu)
         
+        # Format menu
+        format_menu = tk.Menu(menubar, tearoff=0)
+        format_menu.add_command(label = "Font...", command=self.configure_font)
+        menubar.add_cascade(label = "Format", menu=format_menu)
+        
         # View menu
         view_menu = tk.Menu(menubar, tearoff=0)
         theme_menu = tk.Menu(view_menu, tearoff=0)
-        view_menu.add_cascade(label="Theme", menu=theme_menu)
-        theme_menu.add_command(label="Light", command=lambda: ctk.set_appearance_mode("light"))
-        theme_menu.add_command(label="Dark", command=lambda: ctk.set_appearance_mode("dark"))
-        menubar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_cascade(label = "Theme", menu=theme_menu)
+        theme_menu.add_command(label = "Light", command = lambda: ctk.set_appearance_mode("light"))
+        theme_menu.add_command(label = "Dark", command = lambda: ctk.set_appearance_mode("dark"))
+        menubar.add_cascade(label = "View", menu=view_menu)
         
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="About", command=  lambda: tk.messagebox.showinfo("About", "C Code Compiler & Analyzer\nVersion 1.0\nDeveloped by ZeusLeon"))
+        menubar.add_cascade(label="Help", menu = help_menu)
+
         # Central text editor
-        self.text = ctk.CTkTextbox(self, wrap=tk.NONE)
-        self.text.pack(expand=True, fill= 'both')
+        self.text = ctk.CTkTextbox(self, wrap = tk.NONE)
+        self.text.pack(expand = True, fill = 'both', padx = 15, pady = 15)
         self.text.configure(font=(config["font"], config["size"]))
-        
+
+        # Terminal output
+        self.terminal = ctk.CTkTextbox(self, wrap = tk.WORD, state='disabled', height= 200)
+        self.terminal.pack(padx = 15, fill = 'x')
+        self.terminal.configure(font = (config["font"], config["size"]))
+
         # Status bar
         status = ctk.StringVar()
         status.set("Ready")
-        self.status_bar = ctk.CTkLabel(self, text= status.get(), anchor= 'w')
-        self.status_bar.pack(side= 'bottom', fill= 'x') 
+        self.status_bar = ctk.CTkLabel(self, text = status.get(), anchor = 'w', font= (config["font"], 12))
+        self.status_bar.pack(side = 'bottom', fill = 'x', padx = 20) 
     
     # New file functionality    
     def new_file(self):
@@ -146,3 +157,45 @@ class Compiler(ctk.CTk):
     def analyze(self):
         self.status_bar.configure(text="Analyzing...")
         self.after(5000, lambda: self.status_bar.configure(text="Analysis complete."))
+
+    # Font configuration functionality
+    def configure_font(self):
+        config = get_config()
+        font_window = ctk.CTkToplevel(self)
+        font_window.resizable(False, False)
+        font_window.title("Font")
+        font_window.geometry("400x200")
+        font_window.grid_columnconfigure([0, 1], weight=1)
+        
+        # Font selection
+        font_label = ctk.CTkLabel(font_window, text= "Font:")
+        font_label.grid(row = 0, column = 0, pady = (15, 0), padx = (30, 0))
+        font_label.grid_configure(sticky = 'w')
+        font_combo = ctk.CTkComboBox(font_window, values = list(font.families()), variable = tk.StringVar(value = config["font"]))
+        font_combo.grid(row = 1, column = 0)
+        
+        # Font selection
+        size_label = ctk.CTkLabel(font_window, text = "Size:")
+        size_label.grid(row = 0, column = 1, pady = (15, 0), padx = (30, 0))
+        size_label.grid_configure(sticky = 'w')
+        size_combo = ctk.CTkComboBox(font_window, values = ["8", "10", "12", "14", "16", "18", "20", "22", "24", "26", "28", "30"], variable = tk.IntVar(value = config["size"]))
+        size_combo.grid(row = 1, column = 1)
+
+        # Save button
+        save_button = ctk.CTkButton(font_window, text= "Save", command = lambda: save())
+        save_button.grid(row = 2, column = 0, columnspan = 2, pady = (40, 0))
+        
+        def save():
+            new_font = font_combo.get()
+            new_size = int(size_combo.get())
+            config["font"] = new_font
+            config["size"] = new_size
+            with open("docs/config.json", "w") as f:
+                json.dump(config, f, indent = 4)
+            tk.messagebox.showinfo("Font","Restart the application to apply the changes.") 
+            self.status_bar.configure(text= "Font changed.")    
+            font_window.destroy()
+            
+            
+            
+            

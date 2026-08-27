@@ -1,0 +1,53 @@
+{
+    "identifier": {
+        "letters": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+        "digits": "0123456789",
+        "special": "_"
+    },
+
+    "whitespace":[
+        " ",
+        "\t",
+        "\n"
+    ],
+
+    "reserved_words": [
+        "auto", 
+        "break", 
+        "case", 
+        "charconst", 
+        "continue", 
+        "default", 
+        "dodouble",
+        "else", 
+        "enum", 
+        "externfloat", 
+        "for", 
+        "goto", 
+        "ifint", 
+        "long", 
+        "register", 
+        "returnshort", 
+        "signed", 
+        "sizeof", 
+        "staticstruct", 
+        "switch", 
+        "typedef", 
+        "unionunsigned", 
+        "void", 
+        "volatile", 
+        "while",
+        "_Bool", 
+        "_Complex", 
+        "_Imaginary", 
+        "inline", 
+        "restrict",
+        "_Alignas", 
+        "_Alignof", 
+        "_Atomic", 
+        "_Generic", 
+        "_Noreturn", 
+        "_Static_assert", 
+        "_Thread_local"
+    ]
+}
