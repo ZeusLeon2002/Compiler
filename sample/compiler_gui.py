@@ -24,7 +24,7 @@ class Compiler(ctk.CTk):
         super().__init__()
         self.title("Compiler - Text Editor")
         self.geometry("800x600")
-        self.iconbitmap("docs/assets/Logo.ico")
+        self.iconphoto(False, tk.PhotoImage(file="docs/assets/Logo.png"))
         
         # File menu   
         menubar = tk.Menu(self)
@@ -165,7 +165,7 @@ class Compiler(ctk.CTk):
         font_window.resizable(False, False)
         font_window.title("Font")
         font_window.geometry("400x200")
-        font_window.iconbitmap("docs/assets/Logo.ico")
+        font_window.iconphoto(False, tk.PhotoImage(file="docs/assets/Logo.png"))
         font_window.focus_force()
         font_window.grid_columnconfigure([0, 1], weight=1)
         
@@ -173,14 +173,16 @@ class Compiler(ctk.CTk):
         font_label = tk.Label(font_window, text= "Font:")
         font_label.grid(row = 0, column = 0, pady = (15, 0), padx = (30, 0))
         font_label.grid_configure(sticky = 'w')
-        font_combo = ttk.Combobox(font_window, values = font.families(), state = "readonly", textvariable = tk.StringVar(value = config["font"]))
+        font_combo = ttk.Combobox(font_window, values = font.families(), state = "readonly")
+        font_combo.set(config["font"])
         font_combo.grid(row = 1, column = 0)
         
         # Font selection
         size_label = tk.Label(font_window, text = "Size:")
         size_label.grid(row = 0, column = 1, pady = (15, 0), padx = (30, 0))
         size_label.grid_configure(sticky = 'w')
-        size_combo = ttk.Combobox(font_window, values = ["8", "10", "12", "14", "16", "18", "20", "22", "24", "26", "28", "30"], state = "readonly", textvariable = tk.IntVar(value = config["size"]))
+        size_combo = ttk.Combobox(font_window, values = ["8", "10", "12", "14", "16", "18", "20", "22", "24", "26", "28", "30"], state = "readonly")
+        size_combo.set(config["size"])
         size_combo.grid(row = 1, column = 1)
 
         # Save button
@@ -194,8 +196,9 @@ class Compiler(ctk.CTk):
             config["size"] = new_size
             with open("docs/config.json", "w") as f:
                 json.dump(config, f, indent = 4)
-            tk.messagebox.showinfo("Font","Restart the application to apply the changes.") 
-            self.status_bar.configure(text= "Font changed.")    
+            self.status_bar.configure(text= "Font changed.")  
+            self.text.configure(font=(new_font, new_size))
+            self.terminal.configure(font=(new_font, new_size))  
             font_window.destroy()
             
             
