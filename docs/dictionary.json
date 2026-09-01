@@ -1,9 +1,8 @@
 {
-    "identifier": {
-        "letters": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-        "digits": "0123456789",
-        "special": "_"
-    },
+   
+    "letter": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+
+    "digit": "01234567890",
 
     "whitespace":[
         " ",
@@ -11,7 +10,52 @@
         "\n"
     ],
 
-    "reserved_words": [
+    "operator": {
+        "arithmetic_operator": [
+            "+",
+            "/",
+            "-",
+            "*",
+            "%"
+        ],
+        "relational_operator": [
+            ">",
+            "<",
+            "=",
+            ">=",
+            "<=",
+            "==",
+            "!="
+        ],
+        "logic_operetor": [
+            "&&",
+            "||",
+            "!"
+        ],
+        "bitwise_operator": [
+            "&",
+            "|",
+            "^",
+            "~",
+            ">>",
+            "<<"
+        ],
+        "assignment_operathor": [
+            "=",
+            "+=",
+            "-=",
+            "*=",
+            "/=",
+            "%=",
+            "&=",
+            "|=",
+            "^=",
+            ">>=",
+            "<<="
+        ]
+    },
+
+    "reserved_word": [
         "auto", 
         "break", 
         "case", 

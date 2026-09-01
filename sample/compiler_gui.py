@@ -1,5 +1,4 @@
 from tkinter import font
-
 import customtkinter as ctk
 import tkinter as tk
 import json
@@ -10,6 +9,7 @@ file_path = None
 
 config_path = Path("docs/config.json")
 
+# Load config.json
 def get_config():
     with open(config_path, "r") as f:
         config = json.load(f)
