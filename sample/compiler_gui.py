@@ -1,4 +1,4 @@
-from tkinter import font
+from tkinter import font, ttk
 import customtkinter as ctk
 import tkinter as tk
 import json
@@ -24,7 +24,7 @@ class Compiler(ctk.CTk):
         super().__init__()
         self.title("Compiler - Text Editor")
         self.geometry("800x600")
-        self.iconbitmap(True, "docs/assets/Logo.ico")
+        self.iconbitmap("docs/assets/Logo.ico")
         
         # File menu   
         menubar = tk.Menu(self)
@@ -161,24 +161,26 @@ class Compiler(ctk.CTk):
     # Font configuration functionality
     def configure_font(self):
         config = get_config()
-        font_window = ctk.CTkToplevel(self)
+        font_window = tk.Toplevel(self)
         font_window.resizable(False, False)
         font_window.title("Font")
         font_window.geometry("400x200")
+        font_window.iconbitmap("docs/assets/Logo.ico")
+        font_window.focus_force()
         font_window.grid_columnconfigure([0, 1], weight=1)
         
         # Font selection
-        font_label = ctk.CTkLabel(font_window, text= "Font:")
+        font_label = tk.Label(font_window, text= "Font:")
         font_label.grid(row = 0, column = 0, pady = (15, 0), padx = (30, 0))
         font_label.grid_configure(sticky = 'w')
-        font_combo = ctk.CTkComboBox(font_window, values = list(font.families()), variable = tk.StringVar(value = config["font"]))
+        font_combo = ttk.Combobox(font_window, values = font.families(), state = "readonly", textvariable = tk.StringVar(value = config["font"]))
         font_combo.grid(row = 1, column = 0)
         
         # Font selection
-        size_label = ctk.CTkLabel(font_window, text = "Size:")
+        size_label = tk.Label(font_window, text = "Size:")
         size_label.grid(row = 0, column = 1, pady = (15, 0), padx = (30, 0))
         size_label.grid_configure(sticky = 'w')
-        size_combo = ctk.CTkComboBox(font_window, values = ["8", "10", "12", "14", "16", "18", "20", "22", "24", "26", "28", "30"], variable = tk.IntVar(value = config["size"]))
+        size_combo = ttk.Combobox(font_window, values = ["8", "10", "12", "14", "16", "18", "20", "22", "24", "26", "28", "30"], state = "readonly", textvariable = tk.IntVar(value = config["size"]))
         size_combo.grid(row = 1, column = 1)
 
         # Save button
