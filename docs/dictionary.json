@@ -1,46 +1,90 @@
 {
-   
     "letter": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
 
     "digit": "01234567890",
 
-    "whitespace":[
-        " ",
-        "\t",
-        "\n"
-    ],
+    "keywords": {
+        "control_flow": [
+            "if",
+            "else",
+            "switch",
+            "case",
+            "default",
+            "for",
+            "while",
+            "do",
+            "break",
+            "continue",
+            "goto",
+            "return"
+        ],
 
-    "operator": {
-        "arithmetic_operator": [
+        "types": [
+            "void",
+            "char",
+            "short",
+            "int",
+            "long",
+            "float",
+            "double",
+            "_Bool",
+            "_Complex",
+            "_Imaginary"
+        ],
+
+        "type_modifiers": [
+            "signed",
+            "unsigned"
+        ],
+
+        "user_defined_types": [
+            "struct",
+            "union",
+            "enum",
+            "typedef"
+        ],
+
+        "storage_class": [
+            "auto",
+            "extern",
+            "static",
+            "register",
+            "_Thread_local"
+        ],
+
+        "qualifiers": [
+            "const",
+            "restrict",
+            "volatile",
+            "_Atomic"
+        ],
+
+        "other": [
+            "sizeof",
+            "inline",
+            "_Alignas",
+            "_Alignof",
+            "_Static_assert",
+            "_Noreturn",
+            "_Generic"
+        ]
+    },
+
+    "operators": {
+        "arithmetic": [
             "+",
-            "/",
             "-",
             "*",
+            "/",
             "%"
         ],
-        "relational_operator": [
-            ">",
-            "<",
-            "=",
-            ">=",
-            "<=",
-            "==",
-            "!="
+
+        "increment_decrement": [
+            "++",
+            "--"
         ],
-        "logic_operetor": [
-            "&&",
-            "||",
-            "!"
-        ],
-        "bitwise_operator": [
-            "&",
-            "|",
-            "^",
-            "~",
-            ">>",
-            "<<"
-        ],
-        "assignment_operathor": [
+
+        "assignment": [
             "=",
             "+=",
             "-=",
@@ -50,48 +94,300 @@
             "&=",
             "|=",
             "^=",
-            ">>=",
-            "<<="
+            "<<=",
+            ">>="
+        ],
+
+        "comparison": [
+            "==",
+            "!=",
+            "<",
+            ">",
+            "<=",
+            ">="
+        ],
+
+        "logical": [
+            "&&",
+            "||",
+            "!"
+        ],
+
+        "bitwise": [
+            "&",
+            "|",
+            "^",
+            "~",
+            "<<",
+            ">>"
+        ],
+
+        "pointer": [
+            "&",
+            "*"
+        ],
+
+        "conditional": [
+            "?"
         ]
     },
 
-    "reserved_word": [
-        "auto", 
-        "break", 
-        "case", 
-        "charconst", 
-        "continue", 
-        "default", 
-        "dodouble",
-        "else", 
-        "enum", 
-        "externfloat", 
-        "for", 
-        "goto", 
-        "ifint", 
-        "long", 
-        "register", 
-        "returnshort", 
-        "signed", 
-        "sizeof", 
-        "staticstruct", 
-        "switch", 
-        "typedef", 
-        "unionunsigned", 
-        "void", 
-        "volatile", 
-        "while",
-        "_Bool", 
-        "_Complex", 
-        "_Imaginary", 
-        "inline", 
-        "restrict",
-        "_Alignas", 
-        "_Alignof", 
-        "_Atomic", 
-        "_Generic", 
-        "_Noreturn", 
-        "_Static_assert", 
-        "_Thread_local"
+    "symbols": {
+        "parentheses": [
+            "(",
+            ")"
+        ],
+
+        "brackets": [
+            "[",
+            "]"
+        ],
+
+        "braces": [
+            "{",
+            "}"
+        ],
+
+        "punctuation": [
+            ";",
+            ",",
+            ".",
+            ":"
+        ],
+
+        "member_access": [
+            ".",
+            "->"
+        ],
+
+        "preprocessor": [
+            "#"
+        ],
+
+        "ellipsis": [
+            "..."
+        ]
+    },
+
+    "preprocessor_directives": [
+        "#include",
+        "#define",
+        "#undef",
+        "#if",
+        "#ifdef",
+        "#ifndef",
+        "#else",
+        "#elif",
+        "#endif",
+        "#error",
+        "#warning",
+        "#pragma",
+        "#line",
+        "#defined",
+        "#embed"
+    ],
+
+    "literals": {
+        "integer": {
+            "decimal": "0|[1-9][0-9]*",
+            "octal": "0[0-7]+",
+            "hexadecimal": "0[xX][0-9a-fA-F]+",
+            "binary": "0[bB][01]+"
+        },
+
+        "floating_point": {
+            "decimal": "[0-9]+\\.[0-9]*([eE][+-]?[0-9]+)?",
+            "scientific": "[0-9]+([eE][+-]?[0-9]+)",
+            "hexadecimal": "0[xX][0-9a-fA-F]+\\.[0-9a-fA-F]*([pP][+-]?[0-9]+)?"
+        },
+
+        "character": [
+            "'a'",
+            "'b'",
+            "'\\n'",
+            "'\\t'",
+            "'\\0'",
+            "'\\''",
+            "'\\\\'"
+        ],
+
+        "string": [
+            "\"hello\"",
+            "\"Hello World\"",
+            "\"Line\\nBreak\""
+        ],
+
+        "boolean": [
+            "true",
+            "false"
+        ],
+
+        "null_pointer": [
+            "NULL"
+        ]
+    },
+
+    "literal_suffixes": {
+        "integer": [
+            "u",
+            "U",
+            "l",
+            "L",
+            "ul",
+            "uL",
+            "Ul",
+            "UL",
+            "lu",
+            "lU",
+            "Lu",
+            "LU",
+            "ll",
+            "LL",
+            "ull",
+            "uLL",
+            "Ull",
+            "ULL",
+            "llu",
+            "llU",
+            "LLu",
+            "LLU"
+        ],
+
+        "floating_point": [
+            "f",
+            "F",
+            "l",
+            "L"
+        ]
+    },
+
+    "escape_sequences": [
+        "\\a",
+        "\\b",
+        "\\f",
+        "\\n",
+        "\\r",
+        "\\t",
+        "\\v",
+        "\\\\",
+        "\\'",
+        "\\\"",
+        "\\?",
+        "\\0",
+        "\\x",
+        "\\u",
+        "\\U"
+    ],
+
+    "comments": {
+        "single_line": "//",
+        "multi_line_start": "/*",
+        "multi_line_end": "*/"
+    },
+
+    "identifiers": {
+        "first_character": "[a-zA-Z_]",
+        "following_characters": "[a-zA-Z0-9_]",
+        "pattern": "[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+
+    "special_identifiers": [
+        "main"
+    ],
+
+    "standard_library": {
+        "stdio": [
+            "printf",
+            "scanf",
+            "fprintf",
+            "fscanf",
+            "sprintf",
+            "snprintf",
+            "puts",
+            "putchar",
+            "getchar",
+            "fopen",
+            "fclose",
+            "fread",
+            "fwrite",
+            "fgets",
+            "fputs"
+        ],
+
+        "stdlib": [
+            "malloc",
+            "calloc",
+            "realloc",
+            "free",
+            "exit",
+            "abort",
+            "atoi",
+            "atof",
+            "atol",
+            "strtol",
+            "strtod",
+            "rand",
+            "srand"
+        ],
+
+        "string": [
+            "strlen",
+            "strcpy",
+            "strncpy",
+            "strcat",
+            "strncat",
+            "strcmp",
+            "strncmp",
+            "strchr",
+            "strstr",
+            "memcpy",
+            "memmove",
+            "memset",
+            "memcmp"
+        ],
+
+        "math": [
+            "sin",
+            "cos",
+            "tan",
+            "asin",
+            "acos",
+            "atan",
+            "sqrt",
+            "pow",
+            "exp",
+            "log",
+            "log10",
+            "ceil",
+            "floor",
+            "fabs"
+        ],
+
+        "ctype": [
+            "isalpha",
+            "isdigit",
+            "isalnum",
+            "isspace",
+            "islower",
+            "isupper",
+            "tolower",
+            "toupper"
+        ]
+    },
+
+    "standard_macros": [
+        "NULL",
+        "EOF",
+        "EXIT_SUCCESS",
+        "EXIT_FAILURE",
+        "RAND_MAX",
+        "BUFSIZ",
+        "FOPEN_MAX",
+        "CHAR_BIT"
+    ],
+
+    "preprocessor_operators": [
+        "#",
+        "##"
     ]
 }

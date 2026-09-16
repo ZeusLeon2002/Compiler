@@ -1,3 +1,5 @@
+import time
+from analyzers import *
 from tkinter import font, ttk
 import customtkinter as ctk
 import tkinter as tk
@@ -7,13 +9,16 @@ from pathlib import Path
 file_saved = False
 file_path = None
 
-config_path = Path("docs/config.json")
-
 # Load config.json
 def get_config():
-    with open(config_path, "r") as f:
+    with open("docs/config.json", "r") as f:
         config = json.load(f)
     return config
+
+def get_dictionary():
+    with open("docs/dictionary.json", "r") as f:
+        dictionary = json.load(f)
+    return dictionary
 
 class Compiler(ctk.CTk):
     
@@ -115,7 +120,7 @@ class Compiler(ctk.CTk):
     def open_file(self):
         global file_saved
         global file_path
-        path = tk.filedialog.askopenfilename(filetypes=[("C files", "*.c"), ("Text files", "*.txt")])
+        path = tk.filedialog.askopenfilename(filetypes=[("C files", "*.c"), ("Text files", "*.txt"), ("Backup files", "*.back")])
         if path:
             file_path = path
             self.new_file()
@@ -155,9 +160,40 @@ class Compiler(ctk.CTk):
             
     # Analyze functionality
     def analyze(self):
+        self.save_file()
         self.status_bar.configure(text="Analyzing...")
-        self.after(5000, lambda: self.status_bar.configure(text="Analysis complete."))
-
+        dictionary = get_dictionary()
+        code = self.text.get("1.0", tk.END)
+        position = 0
+        line_count = 0
+        error_count = 0
+        log_path = "docs/Logs/" + file_path.split("/")[-1].replace(".c", "").replace(".txt", "") + "_analysis_log_" + time.strftime("%Y%m%d_%H%M%S") + ".back"
+        while position < len(code):
+            char = code[position]
+            if char == ' ' or char == '\t':
+                position += 1
+            elif char == '\n':
+                line_count += 1
+                position += 1
+            elif char == '/':
+                position, result, token, line_count = block_comment(code, position, line_count)
+                open(log_path, 'a').write(result + " - " + token + "\n")
+            elif char == '#':
+                position, result, token, line_count = preprocessor(code, position, line_count, dictionary)
+                open(log_path, 'a').write(result + " - " + token + "\n")
+            elif char.isalpha() or char == '_':
+                position, result, token, line_count = keyword_or_identifier(code, position, line_count, dictionary)
+                open(log_path, 'a').write(result + " - " + token + "\n")    
+        with open(log_path, 'r+') as log_file:
+            old_content = log_file.read()
+            log_file.seek(0)
+            log_file.write("Lines analyzed: " + str(line_count) + "\nErrors found: " + str(error_count) + "\n\n" + old_content)
+        self.terminal.configure(state='normal')
+        self.terminal.insert(tk.END, "Analysis complete of " + file_path.split("/")[-1] + ".\nLog saved to: " + log_path + "\nLines analyzed: " + str(line_count) + "\nErrors found: " + str(error_count) + "\n\n")
+        self.terminal.configure(state='disabled')
+        self.status_bar.configure(text="Analysis complete.")
+        
+        
     # Font configuration functionality
     def configure_font(self):
         config = get_config()
