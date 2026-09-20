@@ -179,11 +179,18 @@ class Compiler(ctk.CTk):
                 position, result, token, line_count = block_comment(code, position, line_count)
                 open(log_path, 'a').write(result + " - " + token + "\n")
             elif char == '#':
-                position, result, token, line_count = preprocessor(code, position, line_count, dictionary)
+                position, result, token, line_count, error_count = preprocessor(code, position, line_count, dictionary, error_count)
                 open(log_path, 'a').write(result + " - " + token + "\n")
             elif char.isalpha() or char == '_':
-                position, result, token, line_count = keyword_or_identifier(code, position, line_count, dictionary)
+                position, result, token, line_count, error_count = keyword_or_identifier(code, position, line_count, dictionary, error_count)
+                open(log_path, 'a').write(result + " - " + token + "\n")
+            elif char.isdigit():
+                position, result, token, line_count, error_count = number(code, position, line_count, error_count)
                 open(log_path, 'a').write(result + " - " + token + "\n")    
+            else:
+                open(log_path, 'a').write("Invalid character - " + char + "\n")
+                error_count += 1
+                position += 1
         with open(log_path, 'r+') as log_file:
             old_content = log_file.read()
             log_file.seek(0)

@@ -1,8 +1,6 @@
 {
     "letter": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-
     "digit": "01234567890",
-
     "keywords": {
         "control_flow": [
             "if",
@@ -18,8 +16,7 @@
             "goto",
             "return"
         ],
-
-        "types": [
+        "type": [
             "void",
             "char",
             "short",
@@ -31,19 +28,16 @@
             "_Complex",
             "_Imaginary"
         ],
-
-        "type_modifiers": [
+        "type_modifier": [
             "signed",
             "unsigned"
         ],
-
-        "user_defined_types": [
+        "user_defined_type": [
             "struct",
             "union",
             "enum",
             "typedef"
         ],
-
         "storage_class": [
             "auto",
             "extern",
@@ -51,14 +45,12 @@
             "register",
             "_Thread_local"
         ],
-
-        "qualifiers": [
+        "qualifier": [
             "const",
             "restrict",
             "volatile",
             "_Atomic"
         ],
-
         "other": [
             "sizeof",
             "inline",
@@ -69,7 +61,6 @@
             "_Generic"
         ]
     },
-
     "operators": {
         "arithmetic": [
             "+",
@@ -78,12 +69,10 @@
             "/",
             "%"
         ],
-
         "increment_decrement": [
             "++",
             "--"
         ],
-
         "assignment": [
             "=",
             "+=",
@@ -97,7 +86,6 @@
             "<<=",
             ">>="
         ],
-
         "comparison": [
             "==",
             "!=",
@@ -106,13 +94,11 @@
             "<=",
             ">="
         ],
-
         "logical": [
             "&&",
             "||",
             "!"
         ],
-
         "bitwise": [
             "&",
             "|",
@@ -121,55 +107,45 @@
             "<<",
             ">>"
         ],
-
         "pointer": [
             "&",
             "*"
         ],
-
         "conditional": [
             "?"
         ]
     },
-
     "symbols": {
         "parentheses": [
             "(",
             ")"
         ],
-
         "brackets": [
             "[",
             "]"
         ],
-
         "braces": [
             "{",
             "}"
         ],
-
         "punctuation": [
             ";",
             ",",
             ".",
             ":"
         ],
-
         "member_access": [
             ".",
             "->"
         ],
-
         "preprocessor": [
             "#"
         ],
-
         "ellipsis": [
             "..."
         ]
     },
-
-    "preprocessor_directives": [
+    "preprocessor_directive": [
         "#include",
         "#define",
         "#undef",
@@ -186,7 +162,6 @@
         "#defined",
         "#embed"
     ],
-
     "literals": {
         "integer": {
             "decimal": "0|[1-9][0-9]*",
@@ -194,13 +169,11 @@
             "hexadecimal": "0[xX][0-9a-fA-F]+",
             "binary": "0[bB][01]+"
         },
-
         "floating_point": {
             "decimal": "[0-9]+\\.[0-9]*([eE][+-]?[0-9]+)?",
             "scientific": "[0-9]+([eE][+-]?[0-9]+)",
             "hexadecimal": "0[xX][0-9a-fA-F]+\\.[0-9a-fA-F]*([pP][+-]?[0-9]+)?"
         },
-
         "character": [
             "'a'",
             "'b'",
@@ -210,23 +183,19 @@
             "'\\''",
             "'\\\\'"
         ],
-
         "string": [
             "\"hello\"",
             "\"Hello World\"",
             "\"Line\\nBreak\""
         ],
-
         "boolean": [
             "true",
             "false"
         ],
-
         "null_pointer": [
             "NULL"
         ]
     },
-
     "literal_suffixes": {
         "integer": [
             "u",
@@ -252,7 +221,6 @@
             "LLu",
             "LLU"
         ],
-
         "floating_point": [
             "f",
             "F",
@@ -260,7 +228,6 @@
             "L"
         ]
     },
-
     "escape_sequences": [
         "\\a",
         "\\b",
@@ -278,23 +245,19 @@
         "\\u",
         "\\U"
     ],
-
     "comments": {
         "single_line": "//",
         "multi_line_start": "/*",
         "multi_line_end": "*/"
     },
-
     "identifiers": {
         "first_character": "[a-zA-Z_]",
         "following_characters": "[a-zA-Z0-9_]",
         "pattern": "[a-zA-Z_][a-zA-Z0-9_]*"
     },
-
     "special_identifiers": [
         "main"
     ],
-
     "standard_library": {
         "stdio": [
             "printf",
@@ -313,7 +276,6 @@
             "fgets",
             "fputs"
         ],
-
         "stdlib": [
             "malloc",
             "calloc",
@@ -329,7 +291,6 @@
             "rand",
             "srand"
         ],
-
         "string": [
             "strlen",
             "strcpy",
@@ -345,7 +306,6 @@
             "memset",
             "memcmp"
         ],
-
         "math": [
             "sin",
             "cos",
@@ -362,7 +322,6 @@
             "floor",
             "fabs"
         ],
-
         "ctype": [
             "isalpha",
             "isdigit",
@@ -374,7 +333,6 @@
             "toupper"
         ]
     },
-
     "standard_macros": [
         "NULL",
         "EOF",
@@ -385,9 +343,86 @@
         "FOPEN_MAX",
         "CHAR_BIT"
     ],
-
     "preprocessor_operators": [
         "#",
         "##"
-    ]
+    ],
+    "translations": {
+        "keywords": {
+            "if": "si",
+            "else": "si no",
+            "switch": "seleccionar",
+            "case": "caso",
+            "default": "predeterminado",
+            "for": "para",
+            "while": "mientras",
+            "do": "hacer",
+            "break": "romper",
+            "continue": "continuar",
+            "goto": "ir a",
+            "return": "retornar",
+            "void": "vacío",
+            "char": "carácter",
+            "short": "corto",
+            "int": "entero",
+            "long": "largo",
+            "float": "flotante",
+            "double": "doble",
+            "_Bool": "booleano",
+            "_Complex": "complejo",
+            "_Imaginary": "imaginario",
+            "signed": "con signo",
+            "unsigned": "sin signo",
+            "struct": "estructura",
+            "union": "unión",
+            "enum": "enumeración",
+            "typedef": "definición de tipo",
+            "auto": "automático",
+            "extern": "externo",
+            "static": "estático",
+            "register": "registro",
+            "_Thread_local": "local al hilo",
+            "const": "constante",
+            "restrict": "restringido",
+            "volatile": "volátil",
+            "_Atomic": "atómico",
+            "sizeof": "tamaño de",
+            "inline": "en línea",
+            "_Alignas": "alineación de",
+            "_Alignof": "alineación de",
+            "_Static_assert": "afirmación estática",
+            "_Noreturn": "no retorna",
+            "_Generic": "genérico"
+        },
+        "token_types": {
+            "Natural number": "Número natural",
+            "Real number": "Número real",
+            "Invalid number": "Número inválido",
+            "Identifier": "Identificador",
+            "Keyword": "Palabra reservada",
+            "Operator": "Operador",
+            "Symbol": "Símbolo",
+            "Comment": "Comentario",
+            "String": "Cadena",
+            "Character": "Carácter",
+            "Preprocessor directive": "Directiva del preprocesador"
+        },
+        "categories": {
+            "control_flow": "Control de flujo",
+            "type": "Tipo",
+            "type_modifier": "Modificador de tipo",
+            "user_defined_type": "Tipo definido por el usuario",
+            "storage_class": "Clase de almacenamiento",
+            "qualifier": "Calificador",
+            "other": "Otros",
+            "arithmetic": "Aritméticos",
+            "increment_decrement": "Incremento y decremento",
+            "assignment": "Asignación",
+            "comparison": "Comparación",
+            "logical": "Lógicos",
+            "bitwise": "Operadores de bits",
+            "pointer": "Puntero",
+            "conditional": "Condicional"
+        }
+    }
 }
