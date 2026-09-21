@@ -15,6 +15,12 @@ def get_config():
         config = json.load(f)
     return config
 
+# Save config.json
+def save_config(config):
+    with open("docs/config.json", "w") as f:
+        json.dump(config, f, indent=4)
+
+# Load dictionary.json
 def get_dictionary():
     with open("docs/dictionary.json", "r") as f:
         dictionary = json.load(f)
@@ -29,6 +35,7 @@ class Compiler(ctk.CTk):
         super().__init__()
         self.title("Compiler - Text Editor")
         self.geometry("800x600")
+        ctk.set_appearance_mode(config["theme"])
         self.iconphoto(False, tk.PhotoImage(file="docs/assets/Logo.png"))
         
         # File menu   
@@ -67,8 +74,8 @@ class Compiler(ctk.CTk):
         view_menu = tk.Menu(menubar, tearoff=0)
         theme_menu = tk.Menu(view_menu, tearoff=0)
         view_menu.add_cascade(label = "Theme", menu=theme_menu)
-        theme_menu.add_command(label = "Light", command = lambda: ctk.set_appearance_mode("light"))
-        theme_menu.add_command(label = "Dark", command = lambda: ctk.set_appearance_mode("dark"))
+        theme_menu.add_command(label = "Light", command = lambda: self.switch_theme("light"))
+        theme_menu.add_command(label = "Dark", command = lambda: self.switch_theme("dark"))
         menubar.add_cascade(label = "View", menu=view_menu)
         
         # Help menu
@@ -169,26 +176,41 @@ class Compiler(ctk.CTk):
         error_count = 0
         log_path = "docs/Logs/" + file_path.split("/")[-1].replace(".c", "").replace(".txt", "") + "_analysis_log_" + time.strftime("%Y%m%d_%H%M%S") + ".back"
         while position < len(code):
-            char = code[position]
-            if char == ' ' or char == '\t':
+            if code[position] == ' ' or code[position] == '\t':
                 position += 1
-            elif char == '\n':
+            elif code[position] == '\n':
                 line_count += 1
                 position += 1
-            elif char == '/':
-                position, result, token, line_count = block_comment(code, position, line_count)
+            elif code[position] == '/':
+                position, result, token, line_count = block_comment(code, position, line_count, dictionary)
                 open(log_path, 'a').write(result + " - " + token + "\n")
-            elif char == '#':
+            elif code[position] == '#':
                 position, result, token, line_count, error_count = preprocessor(code, position, line_count, dictionary, error_count)
                 open(log_path, 'a').write(result + " - " + token + "\n")
-            elif char.isalpha() or char == '_':
+            elif code[position].isalpha() or code[position] == '_':
                 position, result, token, line_count, error_count = keyword_or_identifier(code, position, line_count, dictionary, error_count)
                 open(log_path, 'a').write(result + " - " + token + "\n")
-            elif char.isdigit():
+            elif code[position].isdigit():
                 position, result, token, line_count, error_count = number(code, position, line_count, error_count)
                 open(log_path, 'a').write(result + " - " + token + "\n")    
+            elif code[position] == '"':
+                position, result, token, line_count, error_count = strings(code, position, line_count, error_count)
+            elif is_operator(code, position, dictionary):
+                result, position, token, line_count, error_count = found_operator(code, position, dictionary, line_count, error_count)
+                open(log_path, 'a').write(result + " - " + token + "\n")   
+            elif is_symbol(code, position, dictionary):
+                result, position, token, line_count, error_count = found_symbol(code, position, dictionary, line_count, error_count)
+                open(log_path, 'a').write(result + " - " + token + "\n")     
             else:
-                open(log_path, 'a').write("Invalid character - " + char + "\n")
+                while position < len(code):
+                    if code[position] == ' ' or code[position] == '\t':
+                        break
+                    elif code[position] == '\n':
+                        break
+                    else:
+                        token += code[position]
+                        position += 1
+                open(log_path, 'a').write("Invalid entry - " + token + "\n")
                 error_count += 1
                 position += 1
         with open(log_path, 'r+') as log_file:
@@ -199,8 +221,7 @@ class Compiler(ctk.CTk):
         self.terminal.insert(tk.END, "Analysis complete of " + file_path.split("/")[-1] + ".\nLog saved to: " + log_path + "\nLines analyzed: " + str(line_count) + "\nErrors found: " + str(error_count) + "\n\n")
         self.terminal.configure(state='disabled')
         self.status_bar.configure(text="Analysis complete.")
-        
-        
+            
     # Font configuration functionality
     def configure_font(self):
         config = get_config()
@@ -229,21 +250,23 @@ class Compiler(ctk.CTk):
         size_combo.grid(row = 1, column = 1)
 
         # Save button
-        save_button = ctk.CTkButton(font_window, text= "Save", command = lambda: save())
+        save_button = ctk.CTkButton(font_window, text= "Save", command = lambda: save_font())
         save_button.grid(row = 2, column = 0, columnspan = 2, pady = (40, 0))
         
-        def save():
+        def save_font():
             new_font = font_combo.get()
             new_size = int(size_combo.get())
             config["font"] = new_font
             config["size"] = new_size
-            with open("docs/config.json", "w") as f:
-                json.dump(config, f, indent = 4)
+            save_config(config)
             self.status_bar.configure(text= "Font changed.")  
             self.text.configure(font=(new_font, new_size))
             self.terminal.configure(font=(new_font, new_size))  
             font_window.destroy()
-            
-            
-            
-            
+    
+    # Theme switching functionality
+    def switch_theme(self, theme):
+        config = get_config()
+        config["theme"] = theme
+        save_config(config)
+        ctk.set_appearance_mode(theme)

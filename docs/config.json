@@ -1,4 +1,5 @@
 {
     "font": "Consolas",
-    "size": 16
+    "size": 16,
+    "theme": "light"
 }
