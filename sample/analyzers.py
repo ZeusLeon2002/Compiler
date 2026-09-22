@@ -8,7 +8,8 @@ def get_dictionary():
 dictionary = get_dictionary()
 
 def block_comment(code, position, line_count):
-    
+    token = ""
+
     if position < len(code) and code[position+1] == '*':
         token += code[position:position+2]
         position += 2
@@ -120,21 +121,28 @@ def preprocessor(code, position, line_count, error_count):
     return position, line_count, error_count, token_data
 
 def keyword_or_identifier(code, position, line_count):
-
     token = code[position]
     position += 1
-
+    
     while position < len(code):
 
         if code[position].isalnum() or code[position] == "_":
             token += code[position]
             position += 1
+            result = "identifier"
+            category = None
 
-        else:
+        elif code[position:position+2] == ".h":
+            token += code[position:position+2]
+            position += 2
+            result = "library"
+            category = None
             break
-
-    result = "identifier"
-    category = None
+            
+        else:
+            result = "identifier"
+            category = None
+            break
 
     for category_name, keywords in dictionary["keywords"].items():
 
@@ -143,6 +151,13 @@ def keyword_or_identifier(code, position, line_count):
             category = category_name
             break
 
+    for category_name, library in dictionary["standard_library"].items():
+    
+        if token in library:
+            result = "library function"
+            category = category_name + " library"
+            break
+                    
     token_data = {
         "token": token,
         "type": result,
@@ -153,141 +168,253 @@ def keyword_or_identifier(code, position, line_count):
 
     return position, line_count, token_data
 
-def number(code, position, line_count, error_count):
+def char(code, position, line_count, error_count):
     token = code[position]
     position += 1
-    result = "Natural number"
     error = False
-    while position < len(code):
-        if code[position].isdigit():
-            token += code[position]
-            position += 1
-        elif code[position] == '.':
-            token += code[position]
-            position += 1
-            result = "Real number"
-            while position < len(code):
-                if code[position].isdigit():
-                    token += code[position]
-                    position += 1
-                elif code[position] == '.':
-                    token += code[position]
-                    position += 1
-                    error = True
-                elif code[position] == '\n':
-                    break
-                elif code[position] == ' ' or code[position] == '\t':
-                    break
-                else:
-                    error = True
-                    break
-        elif code[position] == '\n':
-            position += 1
-            line_count += 1
-            break
-        elif code[position] == ' ' or code[position] == '\t':
-            position += 1
-            break    
+
+    if position >= len(code):
+        error = True
+    elif code[position] == '\\':
+        token += code[position]
+        position += 1
+
+        if position >= len(code):
+            error = True
         else:
             token += code[position]
             position += 1
+    else:
+        token += code[position]
+        position += 1
+
+    if not error:
+        if position >= len(code) or code[position] != "'":
             error = True
-    if error is True:
+        else:
+            token += code[position]
+            position += 1
+
+    if error:
+        result = "invalid_char"
+        category = "invalid"
         error_count += 1
-        result = "Invalid number"        
-            
-    return position, result, token, line_count, error_count
+    else:
+        result = "char"
+        category = "character"
+
+    token_data = {
+        "token": token,
+        "type": result,
+        "category": category,
+        "subcategory": None,
+        "line": line_count
+    }
+
+    return position, line_count, error_count, token_data
+
+def number(code, position, line_count, error_count):
+
+    token = ""
+    error = False
+    result = "natural_number"
+
+    while position < len(code) and code[position].isdigit():
+        token += code[position]
+        position += 1
+
+    if position < len(code) and code[position] == '.':
+        result = "real_number"
+        token += code[position]
+        position += 1
+
+        if position >= len(code) or not code[position].isdigit():
+            error = True
+
+        while position < len(code) and code[position].isdigit():
+            token += code[position]
+            position += 1
+
+    # Detectar un segundo punto
+    if position < len(code) and code[position] == '.':
+        error = True
+
+        while position < len(code) and code[position] == '.':
+            token += code[position]
+            position += 1
+
+    if error:
+        result = "invalid_number"
+        error_count += 1
+
+    token_data = {
+        "token": token,
+        "type": "number",
+        "category": result,
+        "subcategory": None,
+        "line": line_count
+    }
+
+    return position, line_count, error_count, token_data
 
 def strings(code, position, line_count, error_count):
+
     token = code[position]
     position += 1
     error = False
-    
+
     while position < len(code):
-        
+
         if code[position] == '"':
             token += code[position]
             position += 1
             break
-        
+
         elif code[position] == '\n':
-            line_count += 1
-            position += 1
             error = True
             break
-        
+
         else:
             token += code[position]
             position += 1
-            
-    if error is True:
-        result = "Invalid string"
+
+    else:
+        error = True
+
+    if error:
+        result = "invalid_string"
         error_count += 1
+    else:
+        result = "string"
+
+    token_data = {
+        "token": token,
+        "type": result,
+        "category": "string",
+        "subcategory": None,
+        "line": line_count
+    }
+
+    return position, line_count, error_count, token_data
+
+def found_operator(code, position, line_count, error_count):
+
+    token = None
+    category = None
+
+    for category_name, operators in dictionary["operators"].items():
+
+        if code[position:position+3] in operators:
+            token = code[position:position+3]
+            category = category_name
+            position += 3
+            break
+
+    if token is None:
+
+        for category_name, operators in dictionary["operators"].items():
+
+            if code[position:position+2] in operators:
+                token = code[position:position+2]
+                category = category_name
+                position += 2
+                break
+
+    if token is None:
+
+        for category_name, operators in dictionary["operators"].items():
+
+            if code[position] in operators:
+                token = code[position]
+                category = category_name
+                position += 1
+                break
+
+    if token is None:
+
+        token = code[position]
+        position += 1
+        result = "invalid_operator"
+        error_count += 1
+        category = None
+
+    else:
+        result = "operator"
+
+    token_data = {
+        "token": token,
+        "type": result,
+        "category": category,
+        "subcategory": None,
+        "line": line_count
+    }
+
+    return position, line_count, error_count, token_data
         
-    return position, result, token, line_count, error_count
+def found_symbol(code, position, line_count, error_count):
 
+    token = None
+    category = None
 
-def is_operator(code, position):
-    for category, symbols in dictionary["operators"].items():
-        if code[position] in symbols:
-            return True
-        else:
-            is_symbol(code, position, dictionary)
-            
-def is_symbol(code, position, dictionary):
-    for category, symbols in dictionary["symbols"].items():
-        if code[position] in symbols:
-            return True
-    return False
+    for category_name, symbols in dictionary["symbols"].items():
 
-def found_operator(code, position, dictionary, line_count, error_count):
-    token = code[position]
-    position += 1
-    error = False
-    while position < len(code):
-        if code[position] == '\n':
-            line_count += 1
-            position += 1
+        if code[position:position+3] in symbols:
+            token = code[position:position+3]
+            category = category_name
+            position += 3
             break
-        elif code[position] == ' ' or code[position] == '\t':
-            position += 1
-            break
-        else:
-            token += code[position]
-            position += 1
-    for category, operators in dictionary["operators"].items():
-        if token in operators:
-            result = category + " operator"
-            break
-        else:
-            result = "Invalid entry"
-            error = True
-    if error is True:
-        error_count += 1        
-    return result,position, token, line_count, error_count
-        
-def found_symbol(code, position, error_count, line_count):
-    token = code[position]
-    position += 1
-    error = False
-    while position < len(code):
-        if code[position] == '\n':
-            line_count += 1
-            position += 1
-            break
-        elif code[position] == ' ' or code[position] == '\t':
-            position += 1
-            break
-        else:
-            token += code[position]
-            position += 1
-    for category, symbols in dictionary["symbols"].items():
-        if token in symbols:
-            result = category + " symbols"
-            break
-        else:
-            result = "Invalid entry"
-            error = True
-    if error is True:
-        error_count += 1    
-    return result,position, token, line_count, error_count
+
+    if token is None:
+
+        for category_name, symbols in dictionary["symbols"].items():
+
+            if code[position:position+2] in symbols:
+                token = code[position:position+2]
+                category = category_name
+                position += 2
+                break
+
+    if token is None:
+
+        for category_name, symbols in dictionary["symbols"].items():
+
+            if code[position] in symbols:
+                token = code[position]
+                category = category_name
+                position += 1
+                break
+
+    if token is None:
+
+        token = code[position]
+        position += 1
+        result = "invalid_symbol"
+        error_count += 1
+
+    else:
+        result = "symbol"
+
+    token_data = {
+        "token": token,
+        "type": result,
+        "category": category,
+        "subcategory": None,
+        "line": line_count
+    }
+
+    return position, line_count, error_count, token_data
+
+def is_operator_or_symbol(code, position):
+    character = code[position]
+
+    # Revisar operadores
+    for operators in dictionary["operators"].values():
+        if character in operators:
+            return "operator"
+
+    # Revisar símbolos
+    for symbols in dictionary["symbols"].values():
+        if character in symbols:
+            return "symbol"
+
+    return None

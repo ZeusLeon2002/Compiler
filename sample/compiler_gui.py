@@ -9,6 +9,8 @@ from pathlib import Path
 file_saved = False
 file_path = None
 tokens = []
+line_count = 1
+error_count = 0
 
 # Load config.json
 def get_config():
@@ -19,7 +21,7 @@ def get_config():
 # Save config.json
 def save_config(config):
     with open("docs/config.json", "w") as f:
-        json.dump(config, f, indent=4)
+        json.dump(config, f, indent=4)    
 
 class Compiler(ctk.CTk):
     
@@ -58,6 +60,9 @@ class Compiler(ctk.CTk):
         compiler_menu.add_command(label= "Analyze", accelerator= "    Ctrl+Shift+A", command= lambda:self.analyze())
         self.bind("<Control-Shift-a>", lambda event: self.analyze())
         self.bind("<Control-Shift-A>", lambda event: self.analyze())
+        compiler_menu.add_command(label= "Translate", accelerator= "    Ctrl+Shift+T", command= lambda:self.translate())
+        self.bind("<Control-Shift-t>", lambda event: self.analyze())
+        self.bind("<Control-Shift-T>", lambda event: self.analyze())
         menubar.add_cascade(label="Compiler", menu=compiler_menu)
         
         # Format menu
@@ -94,46 +99,56 @@ class Compiler(ctk.CTk):
         self.status_bar = ctk.CTkLabel(self, text = status.get(), anchor = 'w', font= (config["font"], 12))
         self.status_bar.pack(side = 'bottom', fill = 'x', padx = 20) 
     
+    def get_text_content(self):
+        content = self.text.get("1.0", tk.END)
+        if content.endswith("\n"):
+            return content[:-1]
+        return content
+
     # New file functionality    
     def new_file(self):
         global file_saved
-        if not file_saved:
+        global file_path
+        if not file_saved and self.text.get("1.0", tk.END).strip():
             result = tk.messagebox.askyesnocancel("Unsaved Changes", "You have unsaved changes. Do you want to save the file?")
-            if result is True:            
+            if result is True:
                 self.save_file()
-                self.text.delete("1.0", tk.END)
-                self.status_bar.configure(text="New file open.")
-                self.title("Compiler - Text Editor")
-                file_saved = False
-            if result is False: 
-                self.text.delete("1.0", tk.END)
-                self.status_bar.configure(text="New file open.")
-                self.title("Compiler - Text Editor")
-                file_saved = False
-            if result is None: 
-                return                   
-        if file_saved:
-            self.text.delete("1.0", tk.END)
-            self.status_bar.configure(text="New file open.")
-            self.title("Compiler - Text Editor")
-            file_saved = False
+            elif result is False:
+                pass
+            else:
+                return
+
+        self.text.delete("1.0", tk.END)
+        self.status_bar.configure(text="New file open.")
+        self.title("Compiler - Text Editor")
+        file_saved = False
+        file_path = None
             
     # Open file functionality
     def open_file(self):
         global file_saved
         global file_path
         path = tk.filedialog.askopenfilename(filetypes=[("C files", "*.c"), ("Text files", "*.txt"), ("Backup files", "*.back")])
-        if path:
-            file_path = path
-            self.new_file()
-            with open(file_path, 'r') as f:
-                self.text.insert(tk.END, f.read())
-                new_title = path.split("/")[-1]
+        if not path:
+            return
+
+        selected_path = path
+        self.new_file()
+
+        try:
+            with open(selected_path, 'r') as f:
+                content = f.read().rstrip("\n")
+                self.text.insert(tk.END, content)
+                new_title = selected_path.split("/")[-1]
                 new_title = new_title.replace(".c", "")
                 new_title = new_title.replace(".txt", "")
                 self.title("Compiler - " + new_title)
                 file_saved = True
-    
+                file_path = selected_path
+        except FileNotFoundError:
+            self.status_bar.configure(text="The file could not be opened.")
+            return
+        
     # Save functionality        
     def save_file(self):
         global file_saved
@@ -141,7 +156,8 @@ class Compiler(ctk.CTk):
         if file_path is None:
             self.saveAs_file()
         else:
-            open(file_path, 'w').write(self.text.get("1.0", tk.END))
+            content = self.get_text_content()
+            open(file_path, 'w').write(content)
             file_saved = True
             self.status_bar.configure(text="File saved.")
     
@@ -152,7 +168,7 @@ class Compiler(ctk.CTk):
         path = tk.filedialog.asksaveasfilename(defaultextension=".c", filetypes=[("C files", "*.c"), ("Text files", "*.txt")])
         if path:
             file_path = path
-            open(file_path, 'w').write(self.text.get("1.0", tk.END))        
+            open(file_path, 'w').write(self.get_text_content())
             file_saved = True
             new_title = path.split("/")[-1]
             new_title = new_title.replace(".c", "")
@@ -162,12 +178,17 @@ class Compiler(ctk.CTk):
             
     # Analyze functionality
     def analyze(self):
+        global tokens
+        global position
+        global line_count
+        global error_count
+        tokens.clear()
+        position = 0
+        line_count = 1
+        error_count = 0
         self.save_file()
         self.status_bar.configure(text="Analyzing...")
-        code = self.text.get("1.0", tk.END)
-        position = 0
-        line_count = 0
-        error_count = 0
+        code = self.get_text_content()
         log_path = "docs/Logs/" + file_path.split("/")[-1].replace(".c", "").replace(".txt", "") + "_analysis_log_" + time.strftime("%Y%m%d_%H%M%S") + ".back"
         
         while position < len(code):
@@ -178,14 +199,14 @@ class Compiler(ctk.CTk):
                 while position < len(code) and code[position] == ' ':
                     token += code[position]
                     position += 1
-                    
-                tokens.append({
+
+                token_data = {
                     "token": token,
                     "type": "whitespace",
                     "category": None,
                     "subcategory": None,
                     "line": line_count
-                })
+                }
                 
             elif code[position] == '\t':
                 token = ""
@@ -193,36 +214,38 @@ class Compiler(ctk.CTk):
                 while position < len(code) and code[position] == '\t':
                     token += code[position]
                     position += 1
-                    
-                tokens.append({
+
+                token_data = {
                     "token": token,
                     "type": "whitespace",
                     "category": None,
                     "subcategory": None,
                     "line": line_count
-                })
+                }
                 
             elif code[position] == '\n':
                 token = ""
-                
+                i = 0
+                 
                 while position < len(code) and code[position] == '\n':
                     token += code[position]
                     position += 1
                     line_count += 1
-                    
-                tokens.append({
+                    i += 1
+
+                token_data = {
                     "token": token,
                     "type": "whitespace",
                     "category": None,
                     "subcategory": None,
-                    "line": line_count - 1
-                })
+                    "line": line_count - i
+                }
                 
             elif code[position] == '/':
                 find, position, line_count, token_data = block_comment(code, position, line_count)
                 
                 if not find:
-                    position, line_count, token_data = is_operator(code, position)
+                    position, line_count, error_count, token_data = found_operator(code, position, dictionary, line_count, error_count)
                 
             elif code[position] == '#':
                 position, line_count, error_count, token_data = preprocessor(code, position, line_count, error_count)
@@ -231,44 +254,42 @@ class Compiler(ctk.CTk):
                 position, line_count, token_data = keyword_or_identifier(code, position, line_count)
                 
             elif code[position].isdigit():
-                position, result, token, line_count, error_count = number(code, position, line_count, error_count)
-                open(log_path, 'a').write(result + " - " + token + "\n") 
+                position, line_count, error_count, token_data = number(code, position, line_count, error_count)
+
+            elif code[position] == "'":
+                position, line_count, error_count, token_data = char(code, position, line_count, error_count)
                    
             elif code[position] == '"':
-                position, result, token, line_count, error_count = strings(code, position, line_count, error_count)
+                position, line_count, error_count, token_data = strings(code, position, line_count, error_count)
                 
-            elif is_operator(code, position, dictionary):
-                result, position, token, line_count, error_count = found_operator(code, position, line_count, error_count)
-                open(log_path, 'a').write(result + " - " + token + "\n")   
-                
-            elif is_symbol(code, position, dictionary):
-                result, position, token, line_count, error_count = found_symbol(code, position, line_count, error_count)
-                open(log_path, 'a').write(result + " - " + token + "\n")    
-                 
+            elif is_operator_or_symbol(code, position) == "operator":
+                position, line_count, error_count, token_data = found_operator(code, position, line_count, error_count)    
+            
+            elif is_operator_or_symbol(code, position) == "symbol":
+                position, line_count, error_count, token_data = found_symbol(code, position, line_count, error_count)
+                                 
             else:
-                
-                while position < len(code):
-                    
-                    if code[position] == ' ' or code[position] == '\t':
-                        break
-                    
-                    elif code[position] == '\n':
-                        break
-                    
-                    else:
-                        token += code[position]
-                        position += 1
-                        
+                token = code[position]
                 error_count += 1
+                token_data = {
+                    "token": token,
+                    "type": "invalid character",
+                    "category": None,
+                    "subcategory": None,
+                    "line": line_count
+                }
                 position += 1
         
             tokens.append(token_data)
         
         with open(log_path, "w") as f:
+            
             for token in tokens:
-                f.write(
-                    f'{token["type"]} | {token["category"]} - {token["token"]}\n'
-                )
+                
+                if token["type"] != "whitespace":
+                    f.write(
+                        f'{token["type"]} | {token["category"]} - {token["token"]}\n'
+                    )
                         
         with open(log_path, 'r+') as log_file:
             old_content = log_file.read()
@@ -328,3 +349,46 @@ class Compiler(ctk.CTk):
         config["theme"] = theme
         save_config(config)
         ctk.set_appearance_mode(theme)
+        
+    # Translate functionality   
+    def translate(self):
+        global file_saved
+        global file_path
+        self.analyze()
+        if error_count == 0:
+            path = "docs/translates/" + file_path.split("/")[-1].replace(".c", "").replace(".txt", "") + "_translate_code_" + time.strftime("%Y%m%d_%H%M%S") + ".txt"
+           
+            with open(path, "w") as f: 
+                
+                for token in tokens:
+                    
+                    if token["type"] == "keyword" or token["type"] == "preprocessor_directive":
+                        
+                        if token["token"] in dictionary["translations"]:
+                            token["token"] = dictionary["translations"][token["token"]]
+                
+                    f.write(token["token"])
+                    
+            self.status_bar.configure(text="Translate complete.")
+            
+            if tk.messagebox.askyesno("Show translate", "Do you want to open the translation in the editor?"):
+                
+                try:
+                    
+                    with open(path, 'r') as f:
+                        content = f.read().rstrip("\n")
+                        self.text.delete("1.0", tk.END)
+                        self.text.insert(tk.END, content)
+                        new_title = path.split("/")[-1]
+                        new_title = new_title.replace(".c", "")
+                        new_title = new_title.replace(".txt", "")
+                        self.title("Compiler - " + new_title)
+                        file_saved = True
+                        file_path = path
+                        
+                except FileNotFoundError:
+                    self.status_bar.configure(text="The file could not be opened.")
+                    return   
+                           
+        else:
+            tk.messagebox.showwarning("Code errors", "It is not possible to start the translation if the code contains errors.")
