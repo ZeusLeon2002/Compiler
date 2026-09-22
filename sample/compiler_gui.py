@@ -8,6 +8,7 @@ from pathlib import Path
 
 file_saved = False
 file_path = None
+tokens = []
 
 # Load config.json
 def get_config():
@@ -19,12 +20,6 @@ def get_config():
 def save_config(config):
     with open("docs/config.json", "w") as f:
         json.dump(config, f, indent=4)
-
-# Load dictionary.json
-def get_dictionary():
-    with open("docs/dictionary.json", "r") as f:
-        dictionary = json.load(f)
-    return dictionary
 
 class Compiler(ctk.CTk):
     
@@ -169,54 +164,117 @@ class Compiler(ctk.CTk):
     def analyze(self):
         self.save_file()
         self.status_bar.configure(text="Analyzing...")
-        dictionary = get_dictionary()
         code = self.text.get("1.0", tk.END)
         position = 0
         line_count = 0
         error_count = 0
         log_path = "docs/Logs/" + file_path.split("/")[-1].replace(".c", "").replace(".txt", "") + "_analysis_log_" + time.strftime("%Y%m%d_%H%M%S") + ".back"
+        
         while position < len(code):
-            if code[position] == ' ' or code[position] == '\t':
-                position += 1
+            
+            if code[position] == ' ':
+                token = ""
+                
+                while position < len(code) and code[position] == ' ':
+                    token += code[position]
+                    position += 1
+                    
+                tokens.append({
+                    "token": token,
+                    "type": "whitespace",
+                    "category": None,
+                    "subcategory": None,
+                    "line": line_count
+                })
+                
+            elif code[position] == '\t':
+                token = ""
+                
+                while position < len(code) and code[position] == '\t':
+                    token += code[position]
+                    position += 1
+                    
+                tokens.append({
+                    "token": token,
+                    "type": "whitespace",
+                    "category": None,
+                    "subcategory": None,
+                    "line": line_count
+                })
+                
             elif code[position] == '\n':
-                line_count += 1
-                position += 1
+                token = ""
+                
+                while position < len(code) and code[position] == '\n':
+                    token += code[position]
+                    position += 1
+                    line_count += 1
+                    
+                tokens.append({
+                    "token": token,
+                    "type": "whitespace",
+                    "category": None,
+                    "subcategory": None,
+                    "line": line_count - 1
+                })
+                
             elif code[position] == '/':
-                position, result, token, line_count = block_comment(code, position, line_count, dictionary)
-                open(log_path, 'a').write(result + " - " + token + "\n")
+                find, position, line_count, token_data = block_comment(code, position, line_count)
+                
+                if not find:
+                    position, line_count, token_data = is_operator(code, position)
+                
             elif code[position] == '#':
-                position, result, token, line_count, error_count = preprocessor(code, position, line_count, dictionary, error_count)
-                open(log_path, 'a').write(result + " - " + token + "\n")
+                position, line_count, error_count, token_data = preprocessor(code, position, line_count, error_count)
+                
             elif code[position].isalpha() or code[position] == '_':
-                position, result, token, line_count, error_count = keyword_or_identifier(code, position, line_count, dictionary, error_count)
-                open(log_path, 'a').write(result + " - " + token + "\n")
+                position, line_count, token_data = keyword_or_identifier(code, position, line_count)
+                
             elif code[position].isdigit():
                 position, result, token, line_count, error_count = number(code, position, line_count, error_count)
-                open(log_path, 'a').write(result + " - " + token + "\n")    
+                open(log_path, 'a').write(result + " - " + token + "\n") 
+                   
             elif code[position] == '"':
                 position, result, token, line_count, error_count = strings(code, position, line_count, error_count)
+                
             elif is_operator(code, position, dictionary):
-                result, position, token, line_count, error_count = found_operator(code, position, dictionary, line_count, error_count)
+                result, position, token, line_count, error_count = found_operator(code, position, line_count, error_count)
                 open(log_path, 'a').write(result + " - " + token + "\n")   
+                
             elif is_symbol(code, position, dictionary):
-                result, position, token, line_count, error_count = found_symbol(code, position, dictionary, line_count, error_count)
-                open(log_path, 'a').write(result + " - " + token + "\n")     
+                result, position, token, line_count, error_count = found_symbol(code, position, line_count, error_count)
+                open(log_path, 'a').write(result + " - " + token + "\n")    
+                 
             else:
+                
                 while position < len(code):
+                    
                     if code[position] == ' ' or code[position] == '\t':
                         break
+                    
                     elif code[position] == '\n':
                         break
+                    
                     else:
                         token += code[position]
                         position += 1
-                open(log_path, 'a').write("Invalid entry - " + token + "\n")
+                        
                 error_count += 1
                 position += 1
+        
+            tokens.append(token_data)
+        
+        with open(log_path, "w") as f:
+            for token in tokens:
+                f.write(
+                    f'{token["type"]} | {token["category"]} - {token["token"]}\n'
+                )
+                        
         with open(log_path, 'r+') as log_file:
             old_content = log_file.read()
             log_file.seek(0)
             log_file.write("Lines analyzed: " + str(line_count) + "\nErrors found: " + str(error_count) + "\n\n" + old_content)
+            
         self.terminal.configure(state='normal')
         self.terminal.insert(tk.END, "Analysis complete of " + file_path.split("/")[-1] + ".\nLog saved to: " + log_path + "\nLines analyzed: " + str(line_count) + "\nErrors found: " + str(error_count) + "\n\n")
         self.terminal.configure(state='disabled')

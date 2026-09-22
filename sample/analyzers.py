@@ -1,97 +1,157 @@
-def block_comment(code, position, line_count, dictionary):
-    token = code[position]
-    position += 1
-    if code[position] == '*':
-        token += code[position]
-        position += 1
-        result = "Block comment"
+import json
+
+def get_dictionary():
+    with open("docs/dictionary.json", "r") as f:
+        dictionary = json.load(f)
+    return dictionary
+
+dictionary = get_dictionary()
+
+def block_comment(code, position, line_count):
+    
+    if position < len(code) and code[position+1] == '*':
+        token += code[position:position+2]
+        position += 2
+        
         while position < len(code):
+            
             if code[position:position+2] == "*/":
                 token += code[position:position+2]
                 position += 2
                 break
+            
             if code[position] == '\n':
-                token += "\\n"
+                token += "\n"
                 position += 1
                 line_count += 1
+                
             else:
                 token += code[position]
                 position += 1  
-    elif code[position] == '/':
-        token += code[position]
-        position += 1
-        result = "Line comment"
+                
+        token_data = {
+            "token": token,
+            "type": "comments",
+            "category": "multi_line",
+            "subcategory": None,
+            "line": line_count
+        }
+            
+    elif position < len(code) and code[position+1] == '/':        
+        token += code[position:position+2]
+        position += 2
+        
         while position < len(code):
+            
             if code[position] == '\n':
                 break
+            
             else:
                 token += code[position]
                 position += 1
+                
+        token_data = {
+            "token": token,
+            "type": "comments",
+            "category": "single_line",
+            "subcategory": None,
+            "line": line_count
+        }      
+         
     else:
-        is_operator(code, position, dictionary)
-    return position, result, token, line_count
+        return False, position, line_count, token_data
+        
+    return True, position, line_count, token_data
 
-def preprocessor(code, position, line_count, dictionary, error_count):
+def preprocessor(code, position, line_count, error_count):
+
     token = code[position]
     position += 1
     error = False
+
     while position < len(code):
+
         if code[position] == '\n':
-            position += 1
-            line_count += 1  
             break
+
         elif code[position].isspace():
-            token += code[position]
-            position += 1   
             break
+
+        elif code[position] == '#':
+            token += 1
+            position += 1
+            break
+            
         elif code[position].isalpha():
             token += code[position]
             position += 1
+
         else:
             token += code[position]
             position += 1
             error = True
-    if error is True:
-        result = "Invalid preprocessor directive"
-        error_count += 1    
-    else:       
-        if token in dictionary["preprocessor_directive"]:
-            result = "Preprocessor directive"
-        else:
-            result = "Unknown preprocessor directive"
-            error_count += 1                   
-    return position, result, token, line_count, error_count
 
-def keyword_or_identifier(code, position, line_count, dictionary, error_count):
+    if error:
+        result = "Invalid preprocessor directive"
+        category = "invalid"
+        error_count += 1
+        
+    elif token == "##":
+        result = "token_pasting"
+        category = "preprocessor_operators"
+
+    elif token in dictionary["preprocessor_directive"]:
+        result = "preprocessor_directive"
+        category = "directive"
+
+    else:
+        result = "Invalid preprocessor directive"
+        category = "invalid"
+        error_count += 1
+
+    token_data = {
+        "token": token,
+        "type": result,
+        "category": category,
+        "subcategory": None,
+        "line": line_count
+    }
+
+    return position, line_count, error_count, token_data
+
+def keyword_or_identifier(code, position, line_count):
+
     token = code[position]
     position += 1
-    error = False
+
     while position < len(code):
-        if code[position].isalpha() or code[position].isdigit() or code[position] == "_":
+
+        if code[position].isalnum() or code[position] == "_":
             token += code[position]
-            position += 1 
-        elif code[position] == '\n':
-            line_count += 1
             position += 1
-            break    
-        elif code[position] == ' ' or code[position] == '\t':
-            position += 1
-            break
+
         else:
-            token += code[position]
-            error = True
-            position += 1
-    if error is False:    
-        for category, keywords in dictionary["keywords"].items():
-            if token in keywords:
-                result = "Keyword of " + category
-                break
-            else:
-                result = "Identifier"
-    else:
-        result = "Invalid identifier"
-        error_count += 1
-    return position, result, token, line_count, error_count
+            break
+
+    result = "identifier"
+    category = None
+
+    for category_name, keywords in dictionary["keywords"].items():
+
+        if token in keywords:
+            result = "keyword"
+            category = category_name
+            break
+
+    token_data = {
+        "token": token,
+        "type": result,
+        "category": category,
+        "subcategory": None,
+        "line": line_count
+    }
+
+    return position, line_count, token_data
 
 def number(code, position, line_count, error_count):
     token = code[position]
@@ -115,10 +175,8 @@ def number(code, position, line_count, error_count):
                     position += 1
                     error = True
                 elif code[position] == '\n':
-                    line_count += 1
                     break
                 elif code[position] == ' ' or code[position] == '\t':
-                    position += 1
                     break
                 else:
                     error = True
@@ -143,28 +201,33 @@ def number(code, position, line_count, error_count):
 def strings(code, position, line_count, error_count):
     token = code[position]
     position += 1
-    result = "String"
     error = False
+    
     while position < len(code):
+        
         if code[position] == '"':
             token += code[position]
             position += 1
             break
+        
         elif code[position] == '\n':
             line_count += 1
             position += 1
             error = True
             break
+        
         else:
             token += code[position]
             position += 1
+            
     if error is True:
         result = "Invalid string"
         error_count += 1
+        
     return position, result, token, line_count, error_count
 
 
-def is_operator(code, position, dictionary):
+def is_operator(code, position):
     for category, symbols in dictionary["operators"].items():
         if code[position] in symbols:
             return True
@@ -203,7 +266,7 @@ def found_operator(code, position, dictionary, line_count, error_count):
         error_count += 1        
     return result,position, token, line_count, error_count
         
-def found_symbol(code, position, dictionary, error_count, line_count):
+def found_symbol(code, position, error_count, line_count):
     token = code[position]
     position += 1
     error = False
