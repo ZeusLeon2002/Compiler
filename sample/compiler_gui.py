@@ -1,39 +1,48 @@
 import time
-from analyzers import *
 from tkinter import font, ttk
 import customtkinter as ctk
 import tkinter as tk
+from tkinter import filedialog, messagebox
 import json
 from pathlib import Path
 
-file_saved = False
-file_path = None
-tokens = []
-line_count = 1
-error_count = 0
+try:
+    from .lexer import DICTIONARY as dictionary, Lexer, PROJECT_ROOT
+    from .parser import Parser
+except ImportError:  # Running sample/main.py directly.
+    from lexer import DICTIONARY as dictionary, Lexer, PROJECT_ROOT
+    from parser import Parser
+
+DOCS_DIR = PROJECT_ROOT / "docs"
+LOGS_DIR = DOCS_DIR / "Logs"
+TRANSLATIONS_DIR = DOCS_DIR / "translates"
 
 # Load config.json
 def get_config():
-    with open("docs/config.json", "r") as f:
-        config = json.load(f)
-    return config
+    with (DOCS_DIR / "config.json").open(encoding="utf-8") as config_file:
+        return json.load(config_file)
 
 # Save config.json
 def save_config(config):
-    with open("docs/config.json", "w") as f:
-        json.dump(config, f, indent=4)    
+    with (DOCS_DIR / "config.json").open("w", encoding="utf-8") as config_file:
+        json.dump(config, config_file, indent=4)
 
 class Compiler(ctk.CTk):
     
     # GUI configuration
     def __init__(self):
         config = get_config()
+        self.file_saved = False
+        self.file_path = None
+        self.tokens = []
+        self.diagnostics = []
+        self.error_count = 0
         
         super().__init__()
         self.title("Compiler - Text Editor")
         self.geometry("800x600")
         ctk.set_appearance_mode(config["theme"])
-        self.iconphoto(False, tk.PhotoImage(file="docs/assets/Logo.png"))
+        self.iconphoto(False, tk.PhotoImage(file=str(DOCS_DIR / "assets" / "Logo.png")))
         
         # File menu   
         menubar = tk.Menu(self)
@@ -61,8 +70,8 @@ class Compiler(ctk.CTk):
         self.bind("<Control-Shift-a>", lambda event: self.analyze())
         self.bind("<Control-Shift-A>", lambda event: self.analyze())
         compiler_menu.add_command(label= "Translate", accelerator= "    Ctrl+Shift+T", command= lambda:self.translate())
-        self.bind("<Control-Shift-t>", lambda event: self.analyze())
-        self.bind("<Control-Shift-T>", lambda event: self.analyze())
+        self.bind("<Control-Shift-t>", lambda event: self.translate())
+        self.bind("<Control-Shift-T>", lambda event: self.translate())
         menubar.add_cascade(label="Compiler", menu=compiler_menu)
         
         # Format menu
@@ -80,13 +89,30 @@ class Compiler(ctk.CTk):
         
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label="About", command=  lambda: tk.messagebox.showinfo("About", "C Code Compiler & Analyzer\nVersion 1.0\nDeveloped by ZeusLeon"))
+        help_menu.add_command(label="About", command=lambda: messagebox.showinfo("About", "C Code Compiler & Analyzer\nVersion 1.0\nDeveloped by ZeusLeon"))
         menubar.add_cascade(label="Help", menu = help_menu)
 
-        # Central text editor
-        self.text = ctk.CTkTextbox(self, wrap = tk.NONE)
-        self.text.pack(expand = True, fill = 'both', padx = 15, pady = 15)
+        # Editor and line-number gutter
+        self.editor_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.editor_frame.pack(expand=True, fill="both", padx=15, pady=15)
+        gutter_bg = "#242424" if config["theme"] == "dark" else "#f0f0f0"
+        self.line_numbers = tk.Canvas(
+            self.editor_frame, width=48, highlightthickness=0, bd=0, bg=gutter_bg
+        )
+        self.line_numbers.pack(side="left", fill="y")
+        self.text = ctk.CTkTextbox(self.editor_frame, wrap=tk.NONE)
+        self.text.pack(side="left", expand=True, fill="both")
         self.text.configure(font=(config["font"], config["size"]))
+        self.text.bind("<KeyRelease>", self._mark_unsaved)
+        self.text.bind("<<Paste>>", self._mark_unsaved)
+        self.text.bind("<<Cut>>", self._mark_unsaved)
+        self.text.bind("<Configure>", lambda event: self._redraw_line_numbers())
+        self.text.bind("<MouseWheel>", lambda event: self._redraw_line_numbers())
+        self.text.bind("<Button-4>", lambda event: self._redraw_line_numbers())
+        self.text.bind("<Button-5>", lambda event: self._redraw_line_numbers())
+        self.text._textbox.configure(yscrollcommand=self._on_editor_scroll)
+        self.text._y_scrollbar.configure(command=self._scroll_editor)
+        self.after_idle(self._redraw_line_numbers)
 
         # Terminal output
         self.terminal = ctk.CTkTextbox(self, wrap = tk.WORD, state='disabled', height= 200)
@@ -105,14 +131,48 @@ class Compiler(ctk.CTk):
             return content[:-1]
         return content
 
+    def _mark_unsaved(self, event):
+        if not event.keysym or len(event.keysym) == 1 or event.keysym in {
+            "BackSpace", "Delete", "Insert", "space", "Tab", "Return", "KP_Enter",
+        }:
+            self.file_saved = False
+        self._redraw_line_numbers()
+
+    def _on_editor_scroll(self, first, last):
+        self.text._y_scrollbar.set(first, last)
+        self._redraw_line_numbers()
+
+    def _scroll_editor(self, *args):
+        self.text._textbox.yview(*args)
+        self._redraw_line_numbers()
+
+    def _redraw_line_numbers(self):
+        if not hasattr(self, "line_numbers") or not hasattr(self, "text"):
+            return
+        self.line_numbers.configure(bg=self.text._textbox.cget("bg"))
+        self.line_numbers.delete("all")
+        textbox = self.text._textbox
+        y_offset = textbox.winfo_rooty() - self.line_numbers.winfo_rooty()
+        line = int(textbox.index("@0,0").split(".")[0])
+        max_line = int(textbox.index("end-1c").split(".")[0])
+        while line <= max_line:
+            line_info = textbox.dlineinfo(f"{line}.0")
+            if line_info is None:
+                break
+            _, y, _, height, _ = line_info
+            self.line_numbers.create_text(
+                40, y + y_offset + height / 2, anchor="e", text=str(line),
+                fill="#a0a0a0", font=(self.text.cget("font"), 12),
+            )
+            line += 1
+
     # New file functionality    
     def new_file(self):
-        global file_saved
-        global file_path
-        if not file_saved and self.text.get("1.0", tk.END).strip():
-            result = tk.messagebox.askyesnocancel("Unsaved Changes", "You have unsaved changes. Do you want to save the file?")
+        if not self.file_saved and self.text.get("1.0", tk.END).strip():
+            result = messagebox.askyesnocancel("Unsaved Changes", "You have unsaved changes. Do you want to save the file?")
             if result is True:
-                self.save_file()
+                if not self.save_file():
+                    return
             elif result is False:
                 pass
             else:
@@ -121,185 +181,111 @@ class Compiler(ctk.CTk):
         self.text.delete("1.0", tk.END)
         self.status_bar.configure(text="New file open.")
         self.title("Compiler - Text Editor")
-        file_saved = False
-        file_path = None
+        self.file_saved = False
+        self.file_path = None
+        return True
             
     # Open file functionality
     def open_file(self):
-        global file_saved
-        global file_path
-        path = tk.filedialog.askopenfilename(filetypes=[("C files", "*.c"), ("Text files", "*.txt"), ("Backup files", "*.back")])
+        path = filedialog.askopenfilename(filetypes=[("C files", "*.c"), ("Text files", "*.txt"), ("Backup files", "*.back")])
         if not path:
             return
 
-        selected_path = path
-        self.new_file()
-
         try:
-            with open(selected_path, 'r') as f:
-                content = f.read().rstrip("\n")
-                self.text.insert(tk.END, content)
-                new_title = selected_path.split("/")[-1]
-                new_title = new_title.replace(".c", "")
-                new_title = new_title.replace(".txt", "")
-                self.title("Compiler - " + new_title)
-                file_saved = True
-                file_path = selected_path
-        except FileNotFoundError:
-            self.status_bar.configure(text="The file could not be opened.")
+            content = Path(path).read_text(encoding="utf-8").rstrip("\n")
+        except OSError as error:
+            self.status_bar.configure(text=f"The file could not be opened: {error}")
             return
+        if not self.new_file():
+            return
+        self.text.insert(tk.END, content)
+        self.title("Compiler - " + Path(path).stem)
+        self.file_saved = True
+        self.file_path = Path(path)
+        self._redraw_line_numbers()
         
     # Save functionality        
     def save_file(self):
-        global file_saved
-        global file_path
-        if file_path is None:
-            self.saveAs_file()
-        else:
-            content = self.get_text_content()
-            open(file_path, 'w').write(content)
-            file_saved = True
+        if self.file_path is None:
+            return self.saveAs_file()
+        content = self.get_text_content()
+        try:
+            self.file_path.write_text(content, encoding="utf-8")
+            self.file_saved = True
             self.status_bar.configure(text="File saved.")
+            return True
+        except OSError as error:
+            self.status_bar.configure(text=f"Could not save file: {error}")
+            return False
     
     # Save As functionality            
     def saveAs_file(self):
-        global file_saved
-        global file_path
-        path = tk.filedialog.asksaveasfilename(defaultextension=".c", filetypes=[("C files", "*.c"), ("Text files", "*.txt")])
+        path = filedialog.asksaveasfilename(defaultextension=".c", filetypes=[("C files", "*.c"), ("Text files", "*.txt")])
         if path:
-            file_path = path
-            open(file_path, 'w').write(self.get_text_content())
-            file_saved = True
-            new_title = path.split("/")[-1]
-            new_title = new_title.replace(".c", "")
-            new_title = new_title.replace(".txt", "")
-            self.title("Compiler - " + new_title)
-            self.status_bar.configure(text="File saved as: " + file_path)            
+            selected_path = Path(path)
+            try:
+                selected_path.write_text(self.get_text_content(), encoding="utf-8")
+                self.file_path = selected_path
+                self.file_saved = True
+                self.title("Compiler - " + selected_path.stem)
+                self.status_bar.configure(text="File saved as: " + str(selected_path))
+                return True
+            except OSError as error:
+                self.status_bar.configure(text=f"Could not save file: {error}")
+                return False
+        else:
+            self.status_bar.configure(text="File save canceled.")
+            return False
             
     # Analyze functionality
     def analyze(self):
-        global tokens
-        global position
-        global line_count
-        global error_count
-        tokens.clear()
-        position = 0
-        line_count = 1
-        error_count = 0
-        self.save_file()
-        self.status_bar.configure(text="Analyzing...")
+        self.tokens = []
+        self.diagnostics = []
+        self.error_count = 0
         code = self.get_text_content()
-        log_path = "docs/Logs/" + file_path.split("/")[-1].replace(".c", "").replace(".txt", "") + "_analysis_log_" + time.strftime("%Y%m%d_%H%M%S") + ".back"
-        
-        while position < len(code):
-            
-            if code[position] == ' ':
-                token = ""
-                
-                while position < len(code) and code[position] == ' ':
-                    token += code[position]
-                    position += 1
+        if not code.strip():
+            self.status_bar.configure(text="Cannot analyze an empty file.")
+            return False
+        if not self.save_file():
+            return False
+        self.status_bar.configure(text="Analyzing...")
+        self.tokens, lexical_diagnostics = Lexer(code).scan()
+        syntax_diagnostics = Parser(self.tokens).parse()
+        self.diagnostics = lexical_diagnostics + syntax_diagnostics
+        self.error_count = len(self.diagnostics)
 
-                token_data = {
-                    "token": token,
-                    "type": "whitespace",
-                    "category": None,
-                    "subcategory": None,
-                    "line": line_count
-                }
-                
-            elif code[position] == '\t':
-                token = ""
-                
-                while position < len(code) and code[position] == '\t':
-                    token += code[position]
-                    position += 1
+        source_name = self.file_path.stem if self.file_path else "untitled"
+        log_path = LOGS_DIR / f"{source_name}_analysis_log_{time.strftime('%Y%m%d_%H%M%S')}_{time.time_ns() % 1_000_000_000:09d}.back"
+        lines = [f"Lines analyzed: {code.count(chr(10)) + 1}", f"Errors found: {self.error_count}", ""]
+        lines.extend(
+            f"{token['line']}:{token['column']} {token['type']} | {token['category']} - {token['token']}"
+            for token in self.tokens if token["type"] != "whitespace"
+        )
+        if self.diagnostics:
+            lines.extend(["", "Diagnostics:"])
+            lines.extend(
+                f"{item['phase']} {item['line']}:{item['column']} - {item['message']}"
+                for item in self.diagnostics
+            )
+        try:
+            LOGS_DIR.mkdir(parents=True, exist_ok=True)
+            log_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        except OSError as error:
+            self.status_bar.configure(text=f"Analysis completed; log could not be saved: {error}")
+            return False
 
-                token_data = {
-                    "token": token,
-                    "type": "whitespace",
-                    "category": None,
-                    "subcategory": None,
-                    "line": line_count
-                }
-                
-            elif code[position] == '\n':
-                token = ""
-                i = 0
-                 
-                while position < len(code) and code[position] == '\n':
-                    token += code[position]
-                    position += 1
-                    line_count += 1
-                    i += 1
-
-                token_data = {
-                    "token": token,
-                    "type": "whitespace",
-                    "category": None,
-                    "subcategory": None,
-                    "line": line_count - i
-                }
-                
-            elif code[position] == '/':
-                find, position, line_count, token_data = block_comment(code, position, line_count)
-                
-                if not find:
-                    position, line_count, error_count, token_data = found_operator(code, position, dictionary, line_count, error_count)
-                
-            elif code[position] == '#':
-                position, line_count, error_count, token_data = preprocessor(code, position, line_count, error_count)
-                
-            elif code[position].isalpha() or code[position] == '_':
-                position, line_count, token_data = keyword_or_identifier(code, position, line_count)
-                
-            elif code[position].isdigit():
-                position, line_count, error_count, token_data = number(code, position, line_count, error_count)
-
-            elif code[position] == "'":
-                position, line_count, error_count, token_data = char(code, position, line_count, error_count)
-                   
-            elif code[position] == '"':
-                position, line_count, error_count, token_data = strings(code, position, line_count, error_count)
-                
-            elif is_operator_or_symbol(code, position) == "operator":
-                position, line_count, error_count, token_data = found_operator(code, position, line_count, error_count)    
-            
-            elif is_operator_or_symbol(code, position) == "symbol":
-                position, line_count, error_count, token_data = found_symbol(code, position, line_count, error_count)
-                                 
-            else:
-                token = code[position]
-                error_count += 1
-                token_data = {
-                    "token": token,
-                    "type": "invalid character",
-                    "category": None,
-                    "subcategory": None,
-                    "line": line_count
-                }
-                position += 1
-        
-            tokens.append(token_data)
-        
-        with open(log_path, "w") as f:
-            
-            for token in tokens:
-                
-                if token["type"] != "whitespace":
-                    f.write(
-                        f'{token["type"]} | {token["category"]} - {token["token"]}\n'
-                    )
-                        
-        with open(log_path, 'r+') as log_file:
-            old_content = log_file.read()
-            log_file.seek(0)
-            log_file.write("Lines analyzed: " + str(line_count) + "\nErrors found: " + str(error_count) + "\n\n" + old_content)
-            
-        self.terminal.configure(state='normal')
-        self.terminal.insert(tk.END, "Analysis complete of " + file_path.split("/")[-1] + ".\nLog saved to: " + log_path + "\nLines analyzed: " + str(line_count) + "\nErrors found: " + str(error_count) + "\n\n")
-        self.terminal.configure(state='disabled')
-        self.status_bar.configure(text="Analysis complete.")
+        self.terminal.configure(state="normal")
+        self.terminal.insert(
+            tk.END,
+            f"Analysis complete of {self.file_path.name}.\nLog saved to: {log_path}\n"
+            f"Lines analyzed: {code.count(chr(10)) + 1}\nErrors found: {self.error_count}\n",
+        )
+        for item in self.diagnostics:
+            self.terminal.insert(tk.END, f"{item['phase']} {item['line']}:{item['column']} - {item['message']}\n")
+        self.terminal.insert(tk.END, "\n")
+        self.terminal.configure(state="disabled")
+        self.status_bar.configure(text="Analysis complete." if not self.error_count else f"Analysis complete with {self.error_count} error(s).")
+        return True
             
     # Font configuration functionality
     def configure_font(self):
@@ -308,7 +294,7 @@ class Compiler(ctk.CTk):
         font_window.resizable(False, False)
         font_window.title("Font")
         font_window.geometry("400x200")
-        font_window.iconphoto(False, tk.PhotoImage(file="docs/assets/Logo.png"))
+        font_window.iconphoto(False, tk.PhotoImage(file=str(DOCS_DIR / "assets" / "Logo.png")))
         font_window.focus_force()
         font_window.grid_columnconfigure([0, 1], weight=1)
         
@@ -349,46 +335,47 @@ class Compiler(ctk.CTk):
         config["theme"] = theme
         save_config(config)
         ctk.set_appearance_mode(theme)
+        self.after_idle(self._redraw_line_numbers)
         
     # Translate functionality   
     def translate(self):
-        global file_saved
-        global file_path
-        self.analyze()
-        if error_count == 0:
-            path = "docs/translates/" + file_path.split("/")[-1].replace(".c", "").replace(".txt", "") + "_translate_code_" + time.strftime("%Y%m%d_%H%M%S") + ".txt"
-           
-            with open(path, "w") as f: 
-                
-                for token in tokens:
-                    
-                    if token["type"] == "keyword" or token["type"] == "preprocessor_directive":
-                        
-                        if token["token"] in dictionary["translations"]:
-                            token["token"] = dictionary["translations"][token["token"]]
-                
-                    f.write(token["token"])
-                    
+        if not self.analyze():
+            return
+        if self.error_count == 0:
+            translation_path = TRANSLATIONS_DIR / (
+                f"{self.file_path.stem}_translate_code_{time.strftime('%Y%m%d_%H%M%S')}_{time.time_ns() % 1_000_000_000:09d}.txt"
+            )
+            translated_source = []
+            for token in self.tokens:
+                spelling = token["token"]
+                if token["type"] in {"keyword", "preprocessor_directive"}:
+                    spelling = dictionary["translations"].get(spelling, spelling)
+                translated_source.append(spelling)
+            try:
+                TRANSLATIONS_DIR.mkdir(parents=True, exist_ok=True)
+                translation_path.write_text("".join(translated_source), encoding="utf-8")
+            except OSError as error:
+                self.status_bar.configure(text=f"Translation could not be saved: {error}")
+                return
+
             self.status_bar.configure(text="Translate complete.")
             
-            if tk.messagebox.askyesno("Show translate", "Do you want to open the translation in the editor?"):
+            if messagebox.askyesno("Show translate", "Do you want to open the translation in the editor?"):
                 
                 try:
                     
-                    with open(path, 'r') as f:
-                        content = f.read().rstrip("\n")
+                    with translation_path.open("r", encoding="utf-8") as translated_file:
+                        content = translated_file.read().rstrip("\n")
                         self.text.delete("1.0", tk.END)
                         self.text.insert(tk.END, content)
-                        new_title = path.split("/")[-1]
-                        new_title = new_title.replace(".c", "")
-                        new_title = new_title.replace(".txt", "")
-                        self.title("Compiler - " + new_title)
-                        file_saved = True
-                        file_path = path
+                        self.title("Compiler - " + translation_path.stem)
+                        self.file_saved = True
+                        self.file_path = translation_path
+                        self._redraw_line_numbers()
                         
-                except FileNotFoundError:
+                except OSError as error:
                     self.status_bar.configure(text="The file could not be opened.")
                     return   
                            
         else:
-            tk.messagebox.showwarning("Code errors", "It is not possible to start the translation if the code contains errors.")
+            messagebox.showwarning("Code errors", "Translation requires a successful lexical and syntax analysis.")
